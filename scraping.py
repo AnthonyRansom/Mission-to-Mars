@@ -5,9 +5,6 @@ import pandas as pd
 import datetime as dt
 from webdriver_manager.chrome import ChromeDriverManager
 
-
-
-
 def scrape_all():
     # Initiate headless driver for deployment
     executable_path = {'executable_path': ChromeDriverManager().install()}
@@ -21,7 +18,8 @@ def scrape_all():
         "news_paragraph": news_paragraph,
         "featured_image": featured_image(browser),
         "facts": mars_facts(),
-        "last_modified": dt.datetime.now()
+        "last_modified": dt.datetime.now(),
+        "hemispheres" : hemisphere_images(browser)
     }
 
     # Stop webdriver and return data
@@ -96,6 +94,56 @@ def mars_facts():
 
     # Convert dataframe into HTML format, add bootstrap
     return df.to_html()
+
+def hemisphere_images(browser):
+    url = 'https://marshemispheres.com/'
+    browser.visit(url)
+
+    hemisphere_image_urls = []
+
+    html = browser.html
+    hemisphere_images_root = soup(html, 'html.parser')
+    try:
+        hemisphere_images_items = hemisphere_images_root.find_all('div', class_='item')
+
+        # loop through the image links on page
+        for item in hemisphere_images_items:
+            # create empty dictionary to hold results
+            hemisphere_image_urls_item = {}
+            # get html url of page where the full image link is located
+            try:
+                full_img_href = url + item.find('a',class_='itemLink product-item')['href']
+                # change browser to url of where full image link is located
+                browser.visit(full_img_href)
+                # capture the html into Beautifulsoup
+                full_img_html = browser.html
+                full_img_soup = soup(full_img_html, 'html.parser')
+                try:
+                    # get the full image url
+                    full_img_url = url + full_img_soup.find('div', class_='downloads').find_all('li')[0].a['href']
+                except AttributeError:
+                    full_img_url = "No URL Found"
+                try:
+                    # get title of image
+                    image_title = full_img_soup.find('h2', class_='title').text
+                except AttributeError:
+                    image_title = "No Title Found"
+                # add items to dictionary
+                hemisphere_image_urls_item = {
+                    'img_url' : full_img_url,
+                    'title' : image_title
+                }
+                # append dictionary to list
+                hemisphere_image_urls.append(hemisphere_image_urls_item)
+            except:
+                return None
+            # change browser back one page to list of hemispheres
+            browser.back()
+
+    except AttributeError:
+        return None
+    
+    return hemisphere_image_urls
 
 if __name__ == "__main__":
     # If running as script, print scraped data
